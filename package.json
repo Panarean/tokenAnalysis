@@ -1,0 +1,9 @@
+{
+  "name": "wahdatw",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "cd erc20pnlfrontend & yarn dev | cd ../erc20pnl"
+  },
+  "license": "MIT"
+}
