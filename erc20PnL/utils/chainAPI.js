@@ -21,11 +21,12 @@ const addressConvert = (address,expand=true) => {
         return `0x${address.slice(26)}`
     }
 }
-const getTokenPrice = async (tokenAddress) => {
+const getTokenPrice = async (tokenAddress,toBlock) => {
     try {
         const response = await Moralis.EvmApi.token.getTokenPrice({
           "chain": "0x1",
-          "address": tokenAddress
+          "address": tokenAddress,
+          toBlock
         });
         return response.toJSON().usdPrice * Math.pow(10,20-response.toJSON().tokenDecimals);
       } catch (e) {
@@ -111,7 +112,25 @@ const _getTransactionReceipt = async (httpProvider,tx) => {
     }
     
 }
+const _getLogs = async (httpProvider,filter) => {
 
+    while(1){
+        let res =await  httpProvider.getLogs(filter)
+            .then(result => {  return result; })
+            .catch(err => {
+                
+                if(err.code == -32012 || err.code == -32007)
+                    return -1;
+                console.log('err',err)
+                return []
+            })
+        if(res == -1)  {
+            await sleep(100)
+            continue;
+        }
+        return res;
+    }
+}
 const getAccountTokenTransfers = async (tokenAddress,accountAddress,startBlockNum,initialStatus) => {
     tokenAddress = tokenAddress.toLowerCase();
     accountAddress = accountAddress.toLowerCase();
@@ -122,7 +141,7 @@ const getAccountTokenTransfers = async (tokenAddress,accountAddress,startBlockNu
     let transactions = [];
     let arrPromises = [];
     for(let i = startBlockNum ;  i < last  ; i += 10000){
-        let filter = tokenContract.filters.Transfer(accountAddress);
+        let filter = tokenContract.filteracs.Transfer(accountAddress);
         let promise = _getTransferLogs(tokenContract,filter,i,i+9999)
             .then(res => {
                 transactions.push(...(res.map(elm => elm.transactionHash)));
@@ -245,10 +264,130 @@ const calcPnL = async (buySellStatus) => {
     await Promise.all(arrPromises);
     return {RealizedProfit, UnrealizedProfit}
 }
+const getTokenAnalysis = async (tokenAddress,startBlockNum) => {
+    let pairs=['0x1a1b82217094953c05c3fa7d2f134b360a82390c']
+    //let pairs=['0xc52a840200dc61a94a63bac75afbf1ad0b05c6ce','0x1a1b82217094953c05c3fa7d2f134b360a82390c']
+    const httpProvider = new ethers.JsonRpcProvider(quickNodeBuildEndPoint[0]);
+    let last = await httpProvider.getBlockNumber();
+    let transactions = []
+    let arrPromises = []
+    for(let i = startBlockNum ;  i < last  ; i += 10000){
+        let filter = {address:pairs,topics:['0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'],fromBlock:i,toBlock:i+9999}
+        let promise = _getLogs(httpProvider,filter)
+            .then(res => {
+                transactions.push(...res.map(elm => {return elm.transactionHash}));
+            } )
+        arrPromises.push(promise) 
+    }
+    await Promise.all(arrPromises)
+    arrPromises = []
+    transactions = [...new Set(transactions)];
+    //transactions = ['0xc51fd12a8569545355209414bf2a13fcdd9fd2c167ac4cf13e95f25eac8309e2']
+    let swaps  = []
+    for (let i = 0 ; i < transactions.length; i++){
+        let tx = transactions[i]
+        let promise =  _getTransactionReceipt(httpProvider,tx)
+            .then(async (txReceipt) => {
+                console.log(`--analyzing transaction ${i+1}/${transactions.length}`)
+                let logs = txReceipt.logs
+                    .filter(elm => {
+                        return elm.topics[0] == '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822' && pairs.includes(elm.address.toLowerCase())
+                    })
+
+                    .map(elm => {
+                        let token0 = parseInt('0x'+elm.data.slice(130,194))-parseInt('0x'+elm.data.slice(2,66))
+                        let token1 = parseInt('0x'+elm.data.slice(194,258))-parseInt('0x'+elm.data.slice(66,130))
+                        return {
+                            trader: txReceipt.from,
+                            token0,
+                            token1,
+                            tx: txReceipt.hash,
+                            blockNumber:txReceipt.blockNumber
+                        }
+                    })
+                swaps.push(...logs)
+                console.log(`analyzing transaction ${i+1}/${transactions.length}`)
+            })
+        arrPromises.push(promise)
+        
+        if(i%5 == 0)
+        {
+            await Promise.all(arrPromises)
+            arrPromises = []
+        }
+    }
+    await Promise.all(arrPromises);
+    
+    arrPromises = []
+    let status = {}
+    console.log(swaps)
+    swaps.forEach(swap => {
+        if(!status[swap.trader]){
+            status[swap.trader]={}
+            status[swap.trader].transactions=[]
+        }
+        status[swap.trader].transactions.push(swap)
+    })
+    Object.keys(status).map((account) => {
+        
+        let balance = 0;
+        let RealizedProfit = 0
+        let InvestAmount = 0;
+        for(let i = 0 ; i < status[account].transactions.length; i++){
+            let transaction = status[account].transactions[i]
+            if(balance == 0){
+                InvestAmount += Math.abs(transaction.token1)
+            }
+            else if(balance > 0 ){
+                if(transaction.token0 > 0){
+                    InvestAmount += Math.abs(transaction.token1)
+                }
+                else {
+                    if(balance < -transaction.token0){
+                        let newInvestAmount = -transaction.token1 * (balance+transaction.token0) / transaction.token0
+                        RealizedProfit += (transaction.token1-newInvestAmount) - InvestAmount
+                        InvestAmount = newInvestAmount
+
+                    }
+                    else{
+                        let newInvestAmount = InvestAmount*(balance+transaction.token0)/balance
+                        RealizedProfit += transaction.token1-(InvestAmount-newInvestAmount)
+                        InvestAmount = newInvestAmount
+                    }
+                }
+            }
+            else{
+                if(transaction.token0 < 0){
+                    InvestAmount += Math.abs(transaction.token1)
+                }
+                else {
+                    if(-balance < transaction.token0){
+                        let newInvestAmount = -transaction.token1 * (balance+transaction.token0) / transaction.token0
+                        RealizedProfit += (transaction.token1+newInvestAmount) + InvestAmount
+                        InvestAmount = newInvestAmount
+
+                    }
+                    else{
+                        let newInvestAmount = InvestAmount*(balance+transaction.token0)/balance
+                        RealizedProfit += transaction.token1+(InvestAmount-newInvestAmount)
+                        InvestAmount = newInvestAmount
+                    }
+                }
+            }
+            balance += transaction.token0
+        }
+        status[account].balance =balance ;
+        status[account].InvestAmount = InvestAmount;
+        status[account].RealizedProfit = RealizedProfit;
+    })
+    return status
+}
 module.exports = {
     addressConvert,
     getInternalTransaction,
     findDeploymentBlock,
     getAccountTokenTransfers,
-    calcPnL
+    calcPnL,
+    getTokenAnalysis,
+    _getTransactionReceipt
 }

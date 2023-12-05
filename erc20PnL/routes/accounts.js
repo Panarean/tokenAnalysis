@@ -61,7 +61,6 @@ router.get('/:account/:token',async  function(req, res, next) {
       arrPromises.push(promise)
       let pnl = await calcPnL(buySellStatus);
       res.json({pnl,buySellStatus,tradingDetails});
-      
     }
     else{
       //previousTradingData = convertStringToBigInt(previousTradingData);
@@ -103,5 +102,6 @@ router.get('/:account/:token',async  function(req, res, next) {
   
 
 });
+
 
 module.exports = router;

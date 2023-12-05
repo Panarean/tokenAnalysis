@@ -3,7 +3,11 @@ const  {mongoURI, dbName} = require('../constants')
 
 
 const client = new MongoClient(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true });
-
+/*const db = { on: false }
+client.connect().then({
+  console.log('Connected to data')
+  db["database"]
+})*/
 async function connect() {
   try {
     await client.connect();
