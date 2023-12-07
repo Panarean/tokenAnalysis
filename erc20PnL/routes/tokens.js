@@ -17,11 +17,15 @@ router.get('/:token', async function(req, res, next) {
     let tokens = client.collection('Tokens');
     let deployedBlockNumber = -1, lastBlockNumber = -1
     const tokenData = await tokens.findOne({token:tokenAddress});
+    let swaps = []
     if(tokenData != null){
-        if(tokenData.lastBlockNumber)
+        if(tokenData.deployedBlockNum)
             deployedBlockNumber = tokenData.deployedBlockNum;
         if(tokenData.lastBlockNumber)
-            lastBlockNumber = tokenData.lastBlockNumber;
+        {
+            lastBlockNumber = tokenData.lastBlockNumber+1;
+            swaps = tokenData.swaps
+        }
     }
     if(deployedBlockNumber == -1)
     {
@@ -36,12 +40,29 @@ router.get('/:token', async function(req, res, next) {
           })
         arrPromises.push(promise)
     }
-    if(lastBlockNumber)
+    if(lastBlockNumber == -1)
         lastBlockNumber = deployedBlockNumber
-
-    let result = await getTokenAnalysis(tokenAddress,lastBlockNumber);
-    res.json(result);
-    await Promise.all[arrPromises]
+    let orgswaps = JSON.parse(JSON.stringify(swaps))
+    let result = await getTokenAnalysis(tokenAddress,lastBlockNumber,swaps);
+    let additionals = result.swaps.filter(item => orgswaps.indexOf(item) === -1)
+    console.log(additionals)
+    let promise = tokens
+          .updateOne({token:tokenAddress},{
+            $set:{lastBlockNumber:result.last},
+            $push:{
+              swaps:{
+                $each:additionals
+              }}
+          })
+          .then(res => {
+            console.log('DatabaseAdd token suceess ',res)
+          })
+          .catch(err => {
+            console.log('Database Error : Adding deployedBlockNum : ',err)
+          })
+    arrPromises.push(promise)
+    res.json(result.status);
+    await Promise.all(arrPromises)
     db.close();
 
 });

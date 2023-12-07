@@ -264,7 +264,7 @@ const calcPnL = async (buySellStatus) => {
     await Promise.all(arrPromises);
     return {RealizedProfit, UnrealizedProfit}
 }
-const getTokenAnalysis = async (tokenAddress,startBlockNum) => {
+const getTokenAnalysis = async (tokenAddress,startBlockNum,swaps) => {
     let pairs=['0x1a1b82217094953c05c3fa7d2f134b360a82390c']
     //let pairs=['0xc52a840200dc61a94a63bac75afbf1ad0b05c6ce','0x1a1b82217094953c05c3fa7d2f134b360a82390c']
     const httpProvider = new ethers.JsonRpcProvider(quickNodeBuildEndPoint[0]);
@@ -283,7 +283,7 @@ const getTokenAnalysis = async (tokenAddress,startBlockNum) => {
     arrPromises = []
     transactions = [...new Set(transactions)];
     //transactions = ['0xc51fd12a8569545355209414bf2a13fcdd9fd2c167ac4cf13e95f25eac8309e2']
-    let swaps  = []
+
     for (let i = 0 ; i < transactions.length; i++){
         let tx = transactions[i]
         let promise =  _getTransactionReceipt(httpProvider,tx)
@@ -320,7 +320,6 @@ const getTokenAnalysis = async (tokenAddress,startBlockNum) => {
     
     arrPromises = []
     let status = {}
-    console.log(swaps)
     swaps.forEach(swap => {
         if(!status[swap.trader]){
             status[swap.trader]={}
@@ -380,7 +379,8 @@ const getTokenAnalysis = async (tokenAddress,startBlockNum) => {
         status[account].InvestAmount = InvestAmount;
         status[account].RealizedProfit = RealizedProfit;
     })
-    return status
+    
+    return {status,swaps,last}
 }
 module.exports = {
     addressConvert,
