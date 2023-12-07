@@ -1,8 +1,6 @@
 const { ethers } = require("ethers")
-const { quickNodeBuildEndPoint, quickNodeFreeEndPoint, WETH, MoralisAPIKey  } = require("../constants")
+const { quickNodeBuildEndPoint, quickNodeFreeEndPoint, WETH, MoralisAPIKey } = require("../constants")
 const { ERC20ABI }  = require('../constants/ABIs');
-const { isBooleanObject } = require("util/types");
-const { convertBigIntToString, convertStringToBigInt } = require(".");
 const Moralis = require('moralis').default
 
 Moralis.start({
