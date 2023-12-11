@@ -53,8 +53,13 @@ const convertStringToBigInt = (obj) => {
 
   return obj;
 }
+const sleep = (ms) => {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 module.exports = {
     convertBigIntToString,
     convertStringToBigInt,
-    convertBigIntToInt
+    convertBigIntToInt,
+    sleep
 } 

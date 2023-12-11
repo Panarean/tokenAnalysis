@@ -55,17 +55,35 @@ const getInternalTransaction = async (httpProvider,txHash) => {
     } 
     
 }
+const _getCode = async (httpProvider, contractAddress,blockNum) => {
+    while(1) {
+        let res =await  httpProvider.getCode(contractAddress,blockNum)
+            .then(result => {  return result; })
+            .catch(err => {
+                if(err.error.code == -32012 || err.error.code == -32007)
+                    return -1;
+                
+                console.log('err',err)
+                return ''
+            })
+        if(res == -1)  {
+            await sleep(100)
+            continue;
+        }
+        return res;
+    } 
+}
 const findDeploymentBlock = async (contractAddress) => {
     const httpProvider = new ethers.JsonRpcProvider(quickNodeBuildEndPoint[0]);
     let last = await httpProvider.getBlockNumber();
     
-    if((await httpProvider.getCode(contractAddress,parseInt(last-1) )) == '0x'){
+    if((await _getCode(httpProvider,contractAddress,parseInt(last-1) )) == '0x'){
         return -1;
     }
     let first = 1;
     while(last - first > 1){
         let mid = parseInt((last + first) / 2);
-        if((await httpProvider.getCode(contractAddress,mid)) == '0x'){
+        if((await _getCode(httpProvider,contractAddress,mid)) == '0x'){
             first = mid
         }
         else{
@@ -266,7 +284,8 @@ const getTokenAnalysis = async (tokenAddress,startBlockNum,swaps) => {
     let pairs=['0x1a1b82217094953c05c3fa7d2f134b360a82390c']
     //let pairs=['0xc52a840200dc61a94a63bac75afbf1ad0b05c6ce','0x1a1b82217094953c05c3fa7d2f134b360a82390c']
     const httpProvider = new ethers.JsonRpcProvider(quickNodeBuildEndPoint[0]);
-    let last = await httpProvider.getBlockNumber();
+    const httpPublicProvider = new ethers.JsonRpcProvider("https://ethereum.publicnode.com")
+    let last = await httpPublicProvider.getBlockNumber();
     let transactions = []
     let arrPromises = []
     for(let i = startBlockNum ;  i < last  ; i += 10000){

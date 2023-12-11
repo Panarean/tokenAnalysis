@@ -2,19 +2,21 @@ const express = require('express');
 const router = express.Router();
 
 
-const db = require('../utils/db')
+const {db} = require('../utils/db')
 const { findDeploymentBlock, getAccountTokenTransfers,calcPnL, getTokenAnalysis } = require('../utils/chainAPI')
-const {convertBigIntToString,convertStringToBigInt,convertBigIntToInt} = require('../utils')
+const {sleep} = require('../utils')
 
 
 router.get('/:token', async function(req, res, next) {
   
-    const client = await db.connect();
+    while(db.on == false){
+      await sleep(50)
+    }
     const tokenAddress = req.params.token.toLowerCase();
     console.log(tokenAddress)
     const arrPromises=[]
-
-    let tokens = client.collection('Tokens');
+    
+    let tokens = db.database.collection('Tokens');
     let deployedBlockNumber = -1, lastBlockNumber = -1
     const tokenData = await tokens.findOne({token:tokenAddress});
     let swaps = []
@@ -42,10 +44,10 @@ router.get('/:token', async function(req, res, next) {
     }
     if(lastBlockNumber == -1)
         lastBlockNumber = deployedBlockNumber
-    let orgswaps = JSON.parse(JSON.stringify(swaps))
+    let originalSwapsLength = swaps.length;
     let result = await getTokenAnalysis(tokenAddress,lastBlockNumber,swaps);
-    let additionals = result.swaps.filter(item => orgswaps.indexOf(item) === -1)
-    console.log(additionals)
+    let additionals = result.swaps.slice(originalSwapsLength)
+    console.log(additionals.length)
     let promise = tokens
           .updateOne({token:tokenAddress},{
             $set:{lastBlockNumber:result.last},
@@ -63,8 +65,6 @@ router.get('/:token', async function(req, res, next) {
     arrPromises.push(promise)
     res.json(result.status);
     await Promise.all(arrPromises)
-    db.close();
-
 });
 
 
