@@ -281,7 +281,7 @@ const calcPnL = async (buySellStatus) => {
     return {RealizedProfit, UnrealizedProfit}
 }
 const getTokenAnalysis = async (tokenAddress,startBlockNum,swaps) => {
-    let pairs=['0x1a1b82217094953c05c3fa7d2f134b360a82390c']
+    let pairs=['0xf66c3870fd174ad20aaf251b7b30d0cf5e8c001f']
     //let pairs=['0xc52a840200dc61a94a63bac75afbf1ad0b05c6ce','0x1a1b82217094953c05c3fa7d2f134b360a82390c']
     const httpProvider = new ethers.JsonRpcProvider(quickNodeBuildEndPoint[0]);
     const httpPublicProvider = new ethers.JsonRpcProvider("https://ethereum.publicnode.com")

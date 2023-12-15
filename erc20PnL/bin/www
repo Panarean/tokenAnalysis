@@ -7,6 +7,7 @@
 var app = require('../app');
 var debug = require('debug')('erc20pnl:server');
 var https = require('https');
+var http = require('http')
 const fs = require('fs')
 
 /**
@@ -24,8 +25,8 @@ const options = {
 	key: fs.readFileSync('./ssl/server.key'),
 	cert: fs.readFileSync('./ssl/server.crt')
   };
-var server = https.createServer(options,app);
-
+//var server = https.createServer(options,app);
+var server = http.createServer(app)
 /**
  * Listen on provided port, on all network interfaces.
  */
