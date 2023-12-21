@@ -18,18 +18,18 @@ const addUniswapV2Pairs = async () => {
     let pairs = db.database.collection('Pairs');
     let orgCount = await pairs.countDocuments();
     
-    const factoryContract = new ethers.Contract(UNIv2factoryAddress,UNIV2FactoryABI,httpProvider[0]);
+    const factoryContract = new ethers.Contract(UNIv2factoryAddress,UNIV2FactoryABI,httpProvider[1]);
     let length = await factoryContract.allPairsLength()
-    length = 50000
+    
     let arrPromises = []
     console.log(orgCount,length)
     let documents = []
     for( let i = orgCount ; i < length ;i ++){
         let promise = factoryContract.allPairs(i).then(async (pairAddress) => {
-            let pairContract = new ethers.Contract(pairAddress,UNIV2PairABI,httpProvider[i%2+1])
+            let pairContract = new ethers.Contract(pairAddress,UNIV2PairABI,httpProvider[1])
             let token0  = await pairContract.token0()
             let token1  = await pairContract.token1()
-        
+            
             documents.push({pairAddress:pairAddress.toLowerCase(),tokens: [token0.toLowerCase(),token1.toLowerCase()]})
             console.log({i,pairAddress})
         })
@@ -55,5 +55,5 @@ const findPairs = async () => {
     console.log(p)
 
 }  
-findPairs()
-//addUniswapV2Pairs();
+//findPairs()
+addUniswapV2Pairs();

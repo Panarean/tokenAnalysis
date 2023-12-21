@@ -57,9 +57,68 @@ const sleep = (ms) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+class Semaphore {
+  constructor(initialCount ) {
+      this.count = initialCount;
+      this.queue = [];
+  }
+
+  async acquire() {
+      return new Promise((resolve) => {
+          let curTime = new Date();
+
+          if (this.count > 0) {
+              this.count--;
+              resolve();
+             
+          } else {
+            this.queue.push(resolve);
+          }
+      });
+  }
+
+  release() {
+      if (this.queue.length > 0) {
+          const resolve = this.queue.shift();
+          resolve();
+      } else {
+          this.count++;
+      }
+  }
+}
+
+class Mutex {
+  constructor() {
+      this._locked = false;
+      this._queue = [];
+  }
+
+  async lock() {
+      return new Promise((resolve, reject) => {
+          if (!this._locked) {
+              this._locked = true;
+              resolve();
+          } else {
+              this._queue.push(resolve);
+          }
+      });
+  }
+
+  unlock() {
+      if (this._queue.length > 0) {
+          const nextResolver = this._queue.shift();
+          nextResolver();
+      } else {
+          this._locked = false;
+      }
+  }
+}
+
 module.exports = {
     convertBigIntToString,
     convertStringToBigInt,
     convertBigIntToInt,
-    sleep
+    sleep,
+    Semaphore,
+    Mutex
 } 
